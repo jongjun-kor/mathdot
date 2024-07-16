@@ -224,7 +224,6 @@
 
         function movePlayer(direction, steps) {
             if (!gameStarted) return;
-            clearPlayer();
             const oldPosition = {...playerPosition};
             switch (direction) {
                 case '위':
@@ -240,6 +239,7 @@
                     playerPosition.x = Math.min(10, playerPosition.x + steps);
                     break;
             }
+            clearPlayer();
             renderPlayer();
             drawLine(oldPosition, playerPosition);
             checkCollision();
@@ -321,8 +321,10 @@
 
         recognition.onresult = function(event) {
             const result = event.results[event.results.length - 1];
-            if (result.isFinal) {
-                processVoiceCommand(result[0].transcript.trim());
+            const transcript = result[0].transcript.trim();
+            
+            if (result.isFinal || (transcript.length > 3 && transcript !== lastProcessedCommand)) {
+                processVoiceCommand(transcript);
             }
         };
 
@@ -330,27 +332,27 @@
             console.log("인식된 음성:", command);
             
             const currentTime = Date.now();
-            if (command === lastProcessedCommand && currentTime - lastCommandTime < 1000) {
-                return; // 1초 이내에 같은 명령이 반복되면 무시
+            if (command === lastProcessedCommand && currentTime - lastCommandTime < 500) {
+                return; // 0.5초 이내에 같은 명령이 반복되면 무시
             }
             
             const directionMap = {
-                '위': '위',
-                '아래': '아래',
-                '왼쪽': '왼쪽',
-                '오른쪽': '오른쪽'
+                '위': '위', '위로': '위',
+                '아래': '아래', '아래로': '아래',
+                '왼쪽': '왼쪽', '왼쪽으로': '왼쪽',
+                '오른쪽': '오른쪽', '오른쪽으로': '오른쪽'
             };
             
             const numberMap = {
-                '한': 1, '두': 2, '세': 3, '네': 4, '다섯': 5,
+                '한': 1, '하나': 1, '두': 2, '둘': 2, '세': 3, '셋': 3, '네': 4, '넷': 4, '다섯': 5,
                 '여섯': 6, '일곱': 7, '여덟': 8, '아홉': 9, '열': 10
             };
 
-            const regex = /(위|아래|왼쪽|오른쪽)(?:으로)?\s*(한|두|세|네|다섯|여섯|일곱|여덟|아홉|열|\d+)?\s*(?:칸|간)?/;
+            const regex = /(위|아래|왼쪽|오른쪽)(?:으?로)?(?:\s*)(한|하나|두|둘|세|셋|네|넷|다섯|여섯|일곱|여덟|아홉|열|\d+)?(?:\s*)(칸|간)?/;
             const matches = command.match(regex);
 
             if (matches) {
-                const direction = directionMap[matches[1]];
+                const direction = directionMap[matches[1]] || matches[1];
                 let steps = 1;
                 if (matches[2]) {
                     steps = numberMap[matches[2]] || parseInt(matches[2]) || 1;
