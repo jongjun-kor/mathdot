@@ -115,6 +115,12 @@
             margin-top: 10px;
             font-weight: bold;
         }
+        .path-line {
+            position: absolute;
+            height: 2px;
+            background-color: rgba(52, 152, 219, 0.5);
+            transform-origin: left center;
+        }
     </style>
 </head>
 <body>
@@ -147,6 +153,8 @@
         let startTime;
         let commandIndex = 1;
         let gameStarted = false;
+        let lastProcessedCommand = '';
+        let lastCommandTime = 0;
 
         function createGrid() {
             gameContainer.innerHTML = '';
@@ -217,6 +225,7 @@
         function movePlayer(direction, steps) {
             if (!gameStarted) return;
             clearPlayer();
+            const oldPosition = {...playerPosition};
             switch (direction) {
                 case '위':
                     playerPosition.y = Math.max(1, playerPosition.y - steps);
@@ -232,7 +241,20 @@
                     break;
             }
             renderPlayer();
+            drawLine(oldPosition, playerPosition);
             checkCollision();
+        }
+
+        function drawLine(start, end) {
+            const line = document.createElement('div');
+            line.classList.add('path-line');
+            const length = Math.sqrt(Math.pow(end.x - start.x, 2) + Math.pow(end.y - start.y, 2)) * 30;
+            const angle = Math.atan2(end.y - start.y, end.x - start.x) * 180 / Math.PI;
+            line.style.width = `${length}px`;
+            line.style.transform = `rotate(${angle}deg)`;
+            line.style.left = `${start.x * 30}px`;
+            line.style.top = `${start.y * 30}px`;
+            gameContainer.appendChild(line);
         }
 
         function checkCollision() {
@@ -297,23 +319,20 @@
             micStatusElement.textContent = "마이크 상태: 활성화";
         };
 
-        let lastProcessedResult = '';
-
         recognition.onresult = function(event) {
             const result = event.results[event.results.length - 1];
             if (result.isFinal) {
                 processVoiceCommand(result[0].transcript.trim());
-            } else {
-                const interimTranscript = result[0].transcript.trim();
-                if (interimTranscript !== lastProcessedResult) {
-                    processVoiceCommand(interimTranscript);
-                    lastProcessedResult = interimTranscript;
-                }
             }
         };
 
         function processVoiceCommand(command) {
             console.log("인식된 음성:", command);
+            
+            const currentTime = Date.now();
+            if (command === lastProcessedCommand && currentTime - lastCommandTime < 1000) {
+                return; // 1초 이내에 같은 명령이 반복되면 무시
+            }
             
             const directionMap = {
                 '위': '위',
@@ -338,6 +357,9 @@
                 }
                 movePlayer(direction, steps);
                 addCommandToHistory(command);
+                
+                lastProcessedCommand = command;
+                lastCommandTime = currentTime;
             }
         }
 
